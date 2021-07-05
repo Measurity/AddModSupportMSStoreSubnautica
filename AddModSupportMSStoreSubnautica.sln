@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AddModSupportMSStoreSubnautica", "AddModSupportMSStoreSubnautica\AddModSupportMSStoreSubnautica.csproj", "{1B580DA3-CA11-43D3-A301-5618BD9630D1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AddModSupportMSStoreSubnautica", "AddModSupportMSStoreSubnautica\AddModSupportMSStoreSubnautica.csproj", "{EE81BF1B-B767-4063-BB5D-78E1C019DA93}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -8,9 +8,9 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{1B580DA3-CA11-43D3-A301-5618BD9630D1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1B580DA3-CA11-43D3-A301-5618BD9630D1}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{1B580DA3-CA11-43D3-A301-5618BD9630D1}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1B580DA3-CA11-43D3-A301-5618BD9630D1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EE81BF1B-B767-4063-BB5D-78E1C019DA93}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EE81BF1B-B767-4063-BB5D-78E1C019DA93}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EE81BF1B-B767-4063-BB5D-78E1C019DA93}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EE81BF1B-B767-4063-BB5D-78E1C019DA93}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

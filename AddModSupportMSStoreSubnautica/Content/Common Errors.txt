@@ -1,0 +1,26 @@
+MS Store fixs 
+
+1. missing Direct x error download this and install it
+`
+https://www.mediafire.com/file/crpnbtzwv4q0xu5/UAPSignedBinary_Microsoft.DirectX.x64.appx/file
+
+2. add-appxpackage deployment failed with hresult 0x80073cfb the provided package is already installed
+
+ P: didn't uninstall Ms-store Subnatuica 
+ S: uninstall Ms-store Subnautica after verifying Dump size is 7.56gbs
+
+3.add-appxpackage deployment failed with hresult 0x80073cf6 package could not be registered missing Splash.png
+
+ P: missing said file Dump didn't complete.
+ S: Redump files and double check ending file size is 7:56
+
+4.add-appxpackage deployment failed with HRESULT: 0x80073CFF, To install this aplication you need either a windows developer license or a Sideloading-enabled system
+
+ P:Developer Mode not enabled.
+ S:Enable Developer Mode! (Windows Settings -> Update and Security -> For Developers -> Developer Mode)
+
+5.You will need a new app
+to open this link ms-xbl-38616e6e.
+
+ P: Subnautica Wasn't registered through powershell 
+ S:Run the following: Add-AppxPackage -Register AppxManifest.xml point your nitrox launcher to the new folder you moved the dumped subnautica files to.

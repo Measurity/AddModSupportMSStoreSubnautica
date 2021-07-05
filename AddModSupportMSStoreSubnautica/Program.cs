@@ -2,12 +2,12 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Security.Principal;
 using System.Threading.Tasks;
 using Microsoft.Win32;
+using NitroxForMSStore;
 
-namespace NitroxForMSStore
+namespace AddModSupportMSStoreSubnautica
 {
     internal class Program
     {
@@ -30,12 +30,20 @@ namespace NitroxForMSStore
                 Console.ReadKey(true);
                 Environment.Exit(1);
             };
+            if (!OperatingSystem.IsWindows())
+            {
+                PrintColor("This tool only works on Windows.", ConsoleColor.Red);
+                goto end;
+            }
 
-            if (RunCmd("if (Get-AppxPackage *Subnautica* | where IsDevelopmentMode -eq $False) { exit 0 } else { exit 1 }") != 0)
+            if (RunCmd(
+                    "if (Get-AppxPackage *Subnautica* | where IsDevelopmentMode -eq $False) { exit 0 } else { exit 1 }") !=
+                0)
             {
                 PrintColor("MS Store Subnautica is not installed", ConsoleColor.Red);
                 goto end;
             }
+
             RequireAdmin();
             EnableDeveloperMode();
 
@@ -43,16 +51,23 @@ namespace NitroxForMSStore
             var dir = AskAndCreateDirectory(@"C:\Subnautica");
 
             var subnauticaProc = await StartSubnauticaAsync();
-            RunCmd($@"-p {subnauticaProc.Id} -d ""{dir}""", "UWPInjector.exe");
+            if (RunCmd($@"-p {subnauticaProc.Id} -d ""{dir}""", "UWPInjector.exe") != 0)
+                // Since the dumper already says what's wrong and waits we can skip it here for now. 
+                // PrintColor("Failed to dump Subnautica.", ConsoleColor.Red);
+                // goto end;
+                return;
             KillProcessesByName("Subnautica");
-            
+
             PrintColor("Uninstalling MS Store Subnautica to be replaced by dumped Subnautica...", ConsoleColor.Cyan);
             RunCmd("Get-AppxPackage *Subnautica* | Remove-AppxPackage");
             PrintColor("Registering dumped Subnautica into MS Store packages...", ConsoleColor.Cyan);
             RunCmd("Add-AppxPackage -Register AppxManifest.xml", "powershell.exe", dir);
-            PrintColor("Organizing files in dumped Subnautica to allow server hosting (this can take a minute)...", ConsoleColor.Cyan);
-            CopyContents(Path.Combine(dir, "AssetBundles"), Path.Combine(dir, "Subnautica_Data", "StreamingAssets", "AssetBundles"));
-            CopyContents(Path.Combine(dir, "SNUnmanagedData"), Path.Combine(dir, "Subnautica_Data", "StreamingAssets", "SNUnmanagedData"));
+            PrintColor("Organizing files in dumped Subnautica to allow server hosting (this can take a minute)...",
+                ConsoleColor.Cyan);
+            CopyContents(Path.Combine(dir, "AssetBundles"),
+                Path.Combine(dir, "Subnautica_Data", "StreamingAssets", "AssetBundles"));
+            CopyContents(Path.Combine(dir, "SNUnmanagedData"),
+                Path.Combine(dir, "Subnautica_Data", "StreamingAssets", "SNUnmanagedData"));
 
             PrintColor(
                 $"Done! Start Nitrox Launcher and set the path in settings to the new dumped Subnautica folder before you play! The path: {Environment.NewLine}{dir}",
@@ -68,7 +83,7 @@ namespace NitroxForMSStore
                 Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock", true);
             baseKey?.SetValue("AllowDevelopmentWithoutDevLicense", 1, RegistryValueKind.DWord);
         }
-        
+
         private static void CopyContents(string folder, string targetDirectory)
         {
             foreach (var directory in Directory.GetDirectories(folder))
@@ -87,7 +102,15 @@ namespace NitroxForMSStore
         private static async Task<Process> StartSubnauticaAsync()
         {
             File.Delete(PlayerLogFile);
-            var subnauticaProc = Process.Start("ms-xbl-38616e6e:\\");
+            var subnauticaProc = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = @"ms-xbl-38616e6e:\",
+                    UseShellExecute = true
+                }
+            };
+            subnauticaProc.Start();
             ExitHandler.AddCleanupTask(() =>
             {
                 subnauticaProc?.Kill();
@@ -106,10 +129,7 @@ namespace NitroxForMSStore
                 {
                     using var stream = new StreamReader(new FileStream(PlayerLogFile, FileMode.Open, FileAccess.Read,
                         FileShare.ReadWrite, 4096, FileOptions.Asynchronous));
-                    if ((await stream.ReadToEndAsync()).Contains("SystemInfo: "))
-                    {
-                        break;
-                    }
+                    if ((await stream.ReadToEndAsync()).Contains("SystemInfo: ")) break;
                 }
                 catch (Exception)
                 {
@@ -119,13 +139,6 @@ namespace NitroxForMSStore
                 {
                     await Task.Delay(iterationDelayInMs);
                 }
-            }
-
-            if ((subnauticaProc?.MainModule?.FileName.Contains("WindowsApps") ?? false) == false)
-            {
-                PrintColor("Could not start Subnautica from MS Store. Make sure it's installed.", ConsoleColor.Red);
-                Console.WriteLine("Press any key to continue . . .");
-                Console.ReadKey(true);
             }
 
             return subnauticaProc;
@@ -240,10 +253,10 @@ namespace NitroxForMSStore
 
             if (!IsAdministrator())
             {
-                using Process proc = new Process();
-                proc.StartInfo = new ProcessStartInfo()
+                using var proc = new Process();
+                proc.StartInfo = new ProcessStartInfo
                 {
-                    FileName = Assembly.GetEntryAssembly().Location,
+                    FileName = Path.Combine(AppContext.BaseDirectory, AppDomain.CurrentDomain.FriendlyName + ".exe"),
                     UseShellExecute = true,
                     Verb = "runas"
                 };
