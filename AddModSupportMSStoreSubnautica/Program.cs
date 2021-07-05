@@ -11,7 +11,6 @@ namespace AddModSupportMSStoreSubnautica
 {
     internal class Program
     {
-        private static readonly bool isQuitting = false;
         private static readonly ConsoleExitHandler ExitHandler = new();
 
         private static readonly string PlayerLogFile =
@@ -36,9 +35,7 @@ namespace AddModSupportMSStoreSubnautica
                 goto end;
             }
 
-            if (RunCmd(
-                    "if (Get-AppxPackage *Subnautica* | where IsDevelopmentMode -eq $False) { exit 0 } else { exit 1 }") !=
-                0)
+            if (RunCmd("if (Get-AppxPackage *Subnautica* | where IsDevelopmentMode -eq $False) { exit 0 } else { exit 1 }") != 0)
             {
                 PrintColor("MS Store Subnautica is not installed", ConsoleColor.Red);
                 goto end;
@@ -96,7 +93,9 @@ namespace AddModSupportMSStoreSubnautica
 
             Directory.CreateDirectory(targetDirectory);
             foreach (var file in Directory.GetFiles(folder))
+            {
                 File.Copy(file, Path.Combine(targetDirectory, Path.GetFileName(file)));
+            }
         }
 
         private static async Task<Process> StartSubnauticaAsync()
@@ -129,7 +128,10 @@ namespace AddModSupportMSStoreSubnautica
                 {
                     using var stream = new StreamReader(new FileStream(PlayerLogFile, FileMode.Open, FileAccess.Read,
                         FileShare.ReadWrite, 4096, FileOptions.Asynchronous));
-                    if ((await stream.ReadToEndAsync()).Contains("SystemInfo: ")) break;
+                    if ((await stream.ReadToEndAsync()).Contains("SystemInfo: "))
+                    {
+                        break;
+                    }
                 }
                 catch (Exception)
                 {
@@ -214,6 +216,7 @@ namespace AddModSupportMSStoreSubnautica
         private static void KillProcessesByName(string name)
         {
             foreach (var process in Process.GetProcessesByName(name))
+            {
                 try
                 {
                     process.Kill();
@@ -223,12 +226,11 @@ namespace AddModSupportMSStoreSubnautica
                 {
                     PrintColor($"Failed to kill process: {process.ProcessName}", ConsoleColor.Yellow);
                 }
+            }
         }
 
         private static void PrintColor(string message, ConsoleColor? color = null)
         {
-            if (isQuitting) return;
-
             if (color == null)
             {
                 Console.WriteLine(message);
