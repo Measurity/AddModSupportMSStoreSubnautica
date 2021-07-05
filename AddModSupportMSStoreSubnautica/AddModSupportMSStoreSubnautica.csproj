@@ -9,7 +9,7 @@
         <RuntimeIdentifier>win-x64</RuntimeIdentifier>
         <TrimMode>link</TrimMode>
         <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
-        <AssemblyName>Add Mod Support MSStore Subnautica</AssemblyName>
+        <AssemblyName>Add Mod Support To MS Store Subnautica</AssemblyName>
         <Prefer32Bit>false</Prefer32Bit>
     </PropertyGroup>
 
