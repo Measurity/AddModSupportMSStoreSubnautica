@@ -41,8 +41,7 @@ namespace NitroxForMSStore
 
             PrintColor(@"Enter where you want your dump files to go. (Default: C:\Subnautica)", ConsoleColor.Cyan);
             var dir = AskAndCreateDirectory(@"C:\Subnautica");
-            Console.WriteLine("your dump path is: " + dir);
-            
+
             var subnauticaProc = await StartSubnauticaAsync();
             RunCmd($@"-p {subnauticaProc.Id} -d ""{dir}""", "UWPInjector.exe");
             KillProcessesByName("Subnautica");
@@ -56,7 +55,7 @@ namespace NitroxForMSStore
             CopyContents(Path.Combine(dir, "SNUnmanagedData"), Path.Combine(dir, "Subnautica_Data", "StreamingAssets", "SNUnmanagedData"));
 
             PrintColor(
-                "Done! Start Nitrox Launcher and set the path in settings to the new dumped Subnautica folder before you play!",
+                $"Done! Start Nitrox Launcher and set the path in settings to the new dumped Subnautica folder before you play! The path: {Environment.NewLine}{dir}",
                 ConsoleColor.Yellow);
             end:
             Console.WriteLine("Press any key to continue . . .");
