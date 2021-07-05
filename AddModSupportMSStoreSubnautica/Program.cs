@@ -5,7 +5,6 @@ using System.Linq;
 using System.Security.Principal;
 using System.Threading.Tasks;
 using Microsoft.Win32;
-using NitroxForMSStore;
 
 namespace AddModSupportMSStoreSubnautica
 {
@@ -22,7 +21,7 @@ namespace AddModSupportMSStoreSubnautica
             ConsoleUtils.SetTopMost();
             AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             {
-                var errorMsg = e.ExceptionObject?.ToString() ??
+                var errorMsg = e.ExceptionObject.ToString() ??
                                $"An unknown unexpected error occurred:{Environment.NewLine}{Environment.StackTrace}";
                 PrintColor(errorMsg, ConsoleColor.Red);
                 Console.WriteLine("Press any key to continue . . .");
@@ -47,12 +46,14 @@ namespace AddModSupportMSStoreSubnautica
             PrintColor(@"Enter where you want your dump files to go. (Default: C:\Subnautica)", ConsoleColor.Cyan);
             var dir = AskAndCreateDirectory(@"C:\Subnautica");
 
-            var subnauticaProc = await StartSubnauticaAsync();
-            if (RunCmd($@"-p {subnauticaProc.Id} -d ""{dir}""", "UWPInjector.exe") != 0)
-                // Since the dumper already says what's wrong and waits we can skip it here for now. 
+            Process subnauticaProc = await StartSubnauticaAsync();
+            if (RunCmd($@"-p {subnauticaProc.Id} -d ""{dir}""", @".\bin\UWPInjector.exe") != 0)
+            {
+                // Since the dumper already says what's wrong and waits we can just abort after this.
                 // PrintColor("Failed to dump Subnautica.", ConsoleColor.Red);
                 // goto end;
                 return;
+            }
             KillProcessesByName("Subnautica");
 
             PrintColor("Uninstalling MS Store Subnautica to be replaced by dumped Subnautica...", ConsoleColor.Cyan);
@@ -76,7 +77,7 @@ namespace AddModSupportMSStoreSubnautica
 
         private static void EnableDeveloperMode()
         {
-            using var baseKey =
+            using RegistryKey? baseKey =
                 Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock", true);
             baseKey?.SetValue("AllowDevelopmentWithoutDevLicense", 1, RegistryValueKind.DWord);
         }
@@ -101,7 +102,7 @@ namespace AddModSupportMSStoreSubnautica
         private static async Task<Process> StartSubnauticaAsync()
         {
             File.Delete(PlayerLogFile);
-            var subnauticaProc = new Process
+            Process subnauticaProc = new()
             {
                 StartInfo = new ProcessStartInfo
                 {
@@ -112,10 +113,10 @@ namespace AddModSupportMSStoreSubnautica
             subnauticaProc.Start();
             ExitHandler.AddCleanupTask(() =>
             {
-                subnauticaProc?.Kill();
-                subnauticaProc?.Close();
+                subnauticaProc.Kill();
+                subnauticaProc.Close();
             });
-            Console.WriteLine("Started Subnautica process Id = " + subnauticaProc?.Id);
+            Console.WriteLine("Started Subnautica process Id = " + subnauticaProc.Id);
             // Wait for Subnautica to initialize a bit before running UWPInjector.
             const int timeToRetryInSeconds = 30;
             const int iterationDelayInMs = 250;
@@ -126,7 +127,7 @@ namespace AddModSupportMSStoreSubnautica
             {
                 try
                 {
-                    using var stream = new StreamReader(new FileStream(PlayerLogFile, FileMode.Open, FileAccess.Read,
+                    using StreamReader stream = new(new FileStream(PlayerLogFile, FileMode.Open, FileAccess.Read,
                         FileShare.ReadWrite, 4096, FileOptions.Asynchronous));
                     if ((await stream.ReadToEndAsync()).Contains("SystemInfo: "))
                     {
@@ -146,7 +147,7 @@ namespace AddModSupportMSStoreSubnautica
             return subnauticaProc;
         }
 
-        private static string AskAndCreateDirectory(string defaultDir = null)
+        private static string AskAndCreateDirectory(string? defaultDir = null)
         {
             while (true)
             {
@@ -185,9 +186,9 @@ namespace AddModSupportMSStoreSubnautica
             }
         }
 
-        private static int RunCmd(string cmd, string shell = "powershell.exe", string workingDirectory = null)
+        private static int RunCmd(string cmd, string shell = "powershell.exe", string? workingDirectory = null)
         {
-            var processStartInfo = new ProcessStartInfo
+            ProcessStartInfo processStartInfo = new()
             {
                 CreateNoWindow = false,
                 UseShellExecute = false,
@@ -196,7 +197,7 @@ namespace AddModSupportMSStoreSubnautica
                 WorkingDirectory = workingDirectory ?? ""
             };
 
-            var process = new Process
+            Process process = new()
             {
                 StartInfo = processStartInfo,
                 EnableRaisingEvents = true
@@ -215,7 +216,7 @@ namespace AddModSupportMSStoreSubnautica
 
         private static void KillProcessesByName(string name)
         {
-            foreach (var process in Process.GetProcessesByName(name))
+            foreach (Process process in Process.GetProcessesByName(name))
             {
                 try
                 {
@@ -237,7 +238,7 @@ namespace AddModSupportMSStoreSubnautica
             }
             else
             {
-                var prev = Console.ForegroundColor;
+                ConsoleColor prev = Console.ForegroundColor;
                 Console.ForegroundColor = color.Value;
                 Console.WriteLine(message);
                 Console.ForegroundColor = prev;
@@ -248,19 +249,21 @@ namespace AddModSupportMSStoreSubnautica
         {
             static bool IsAdministrator()
             {
-                var identity = WindowsIdentity.GetCurrent();
-                var principal = new WindowsPrincipal(identity);
+                WindowsIdentity identity = WindowsIdentity.GetCurrent();
+                WindowsPrincipal principal = new(identity);
                 return principal.IsInRole(WindowsBuiltInRole.Administrator);
             }
 
             if (!IsAdministrator())
             {
-                using var proc = new Process();
-                proc.StartInfo = new ProcessStartInfo
+                using Process proc = new()
                 {
-                    FileName = Path.Combine(AppContext.BaseDirectory, AppDomain.CurrentDomain.FriendlyName + ".exe"),
-                    UseShellExecute = true,
-                    Verb = "runas"
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = Utils.GetCurrentExecutableFileName(),
+                        UseShellExecute = true,
+                        Verb = "runas"
+                    }
                 };
                 proc.Start();
                 Environment.Exit(0);

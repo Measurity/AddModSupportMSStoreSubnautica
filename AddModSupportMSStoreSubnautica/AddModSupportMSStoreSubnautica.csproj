@@ -11,16 +11,24 @@
         <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
         <AssemblyName>Add Mod Support To MS Store Subnautica</AssemblyName>
         <Prefer32Bit>false</Prefer32Bit>
+        <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0"/>
+        <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
     </ItemGroup>
 
     <ItemGroup>
-        <Content Include="Content\**\*.*">
+        <Content Include="Content\**\*.dll;Content\**\*.exe">
+            <Link>%(RecursiveDir)bin\%(Filename)%(Extension)</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Visible>false</Visible>
+        </Content>
+        
+        <Content Include="Content\**\*.txt">
             <Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Visible>false</Visible>
         </Content>
     </ItemGroup>
 </Project>

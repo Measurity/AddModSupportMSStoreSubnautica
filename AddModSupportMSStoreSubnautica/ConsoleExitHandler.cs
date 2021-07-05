@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
-namespace NitroxForMSStore
+namespace AddModSupportMSStoreSubnautica
 {
     /// <summary>
     ///     Captures exit event of console and can do some cleanup.

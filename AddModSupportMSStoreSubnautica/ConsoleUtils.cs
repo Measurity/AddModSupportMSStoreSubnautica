@@ -1,14 +1,14 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace NitroxForMSStore
+namespace AddModSupportMSStoreSubnautica
 {
-    public class ConsoleUtils
+    public static class ConsoleUtils
     {
-        private const int HWND_TOPMOST = -1;
-        private const int SWP_NOMOVE = 0x0002;
-        private const int SWP_NOSIZE = 0x0001;
-        private const int SWP_SHOWWINDOW = 0x0040;
+        private const int HwndTopmost = -1;
+        private const int SwpNoMove = 0x0002;
+        private const int SwpNoSize = 0x0001;
+        private const int SwpShowWindow = 0x0040;
 
         [DllImport("kernel32.dll")]
         static extern IntPtr GetConsoleWindow();
@@ -26,7 +26,7 @@ namespace NitroxForMSStore
 
         public static void SetTopMost()
         {
-            SetWindowPos(GetConsoleWindow(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+            SetWindowPos(GetConsoleWindow(), HwndTopmost, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpShowWindow);
         }
     }
 }
