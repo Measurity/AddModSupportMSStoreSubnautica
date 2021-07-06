@@ -47,12 +47,10 @@ namespace AddModSupportMSStoreSubnautica
             var dir = AskAndCreateDirectory(@"C:\Subnautica");
 
             Process subnauticaProc = await StartSubnauticaAsync();
-            if (RunCmd($@"-p {subnauticaProc.Id} -d ""{dir}""", @".\bin\UWPInjector.exe") != 0)
+            if (RunCmd($@"-c -p {subnauticaProc.Id} -d ""{dir}""", @".\bin\UWPInjector.exe") != 0)
             {
-                // Since the dumper already says what's wrong and waits we can just abort after this.
-                // PrintColor("Failed to dump Subnautica.", ConsoleColor.Red);
-                // goto end;
-                return;
+                PrintColor("Failed to dump Subnautica.", ConsoleColor.Red);
+                goto end;
             }
             KillProcessesByName("Subnautica");
 
