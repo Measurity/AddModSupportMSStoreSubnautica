@@ -61,9 +61,13 @@ Anywhere is fine and can remove it when done.", ConsoleColor.Red);
             KillProcessesByName("Subnautica");
 
             PrintColor("Uninstalling MS Store Subnautica to be replaced by dumped Subnautica...", ConsoleColor.Cyan);
+#if !DEBUG
             RunCmd("Get-AppxPackage *Subnautica* | Remove-AppxPackage");
+#endif
             PrintColor("Registering dumped Subnautica into MS Store packages...", ConsoleColor.Cyan);
+#if !DEBUG
             RunCmd("Add-AppxPackage -Register AppxManifest.xml", "powershell.exe", dir);
+#endif
             PrintColor("Organizing files in dumped Subnautica to allow server hosting (this can take a minute)...",
                 ConsoleColor.Cyan);
             CopyContents(Path.Combine(dir, "AssetBundles"),
@@ -72,7 +76,7 @@ Anywhere is fine and can remove it when done.", ConsoleColor.Red);
                 Path.Combine(dir, "Subnautica_Data", "StreamingAssets", "SNUnmanagedData"));
 
             PrintColor(
-                $"Done! Start Nitrox Launcher and set the path in settings to the new dumped Subnautica folder before you play! The path: {Environment.NewLine}{dir}",
+                $"Done! Before you play: start Nitrox Launcher and set the path in settings to the new path:{Environment.NewLine}{dir}",
                 ConsoleColor.Yellow);
             end:
             Console.WriteLine("Press any key to continue . . .");
