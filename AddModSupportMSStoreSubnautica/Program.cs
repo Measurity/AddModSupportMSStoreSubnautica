@@ -204,7 +204,7 @@ Recommended: {spaceRequirementInBytes / Math.Pow(1024, 3):##,###.##}GiB but actu
             // Try to hide the game window because it should not be closed accidentally by user.
             // TODO: Do this without polling, using some native windows calls to prevent window creation.
             CancellationTokenSource hideWindowSource = new(TimeSpan.FromSeconds(20));
-            await Task.Factory.StartNew(async () =>
+            var _ = Task.Factory.StartNew(async () =>
             {
                 try
                 {
