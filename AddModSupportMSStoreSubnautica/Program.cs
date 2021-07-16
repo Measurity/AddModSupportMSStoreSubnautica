@@ -49,7 +49,7 @@ Anywhere is fine and can remove it when done.", ConsoleColor.Red);
             RequireAdmin();
             EnableDeveloperMode();
 
-            PrintColor(@"Enter where you want your dump files to go. (Default: C:\Subnautica)", ConsoleColor.Cyan);
+            PrintColor(@"Enter a directory where you want Subnautica (with mod support) to be: (Default: C:\Subnautica)", ConsoleColor.Cyan);
             var dir = AskAndCreateDirectory(@"C:\Subnautica");
 
             Process subnauticaProc = await StartSubnauticaAsync();
