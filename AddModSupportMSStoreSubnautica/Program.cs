@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Principal;
+using System.Threading;
 using System.Threading.Tasks;
 using AddModSupportMSStoreSubnautica.TypeConverters;
 
@@ -72,7 +73,7 @@ namespace AddModSupportMSStoreSubnautica
             #if !RELEASE
             Console.WriteLine(" -- RUNNING IN DEVELOPMENT MODE -- ");
             #endif
-            ConsoleUtils.SetTopMost();
+            NativeUtils.SetConsoleTopMost();
             AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             {
                 var errorMsg = e.ExceptionObject.ToString() ??
@@ -199,8 +200,28 @@ Recommended: {spaceRequirementInBytes / Math.Pow(1024, 3):##,###.##}GiB but actu
                 subnauticaProc.Kill();
                 subnauticaProc.Close();
             });
-            Console.WriteLine("Started Subnautica process Id = " + subnauticaProc.Id);
+            
+            // Try to hide the game window because it should not be closed accidentally by user.
+            // TODO: Do this without polling, using some native windows calls to prevent window creation.
+            CancellationTokenSource hideWindowSource = new(TimeSpan.FromSeconds(20));
+            await Task.Factory.StartNew(async () =>
+            {
+                try
+                {
+                    while (!hideWindowSource.IsCancellationRequested)
+                    {
+                        NativeUtils.HideProcessWindow(subnauticaProc);
+                        await Task.Delay(100, hideWindowSource.Token);
+                    }
+                }
+                catch (Exception)
+                {
+                    // ignored
+                }
+            }, hideWindowSource.Token, TaskCreationOptions.LongRunning, TaskScheduler.Current).ConfigureAwait(false);
+
             // Wait for Subnautica to initialize a bit before running UWPInjector.
+            Console.WriteLine("Started Subnautica process Id = " + subnauticaProc.Id);
             const int timeToRetryInSeconds = 30;
             const int iterationDelayInMs = 250;
             PrintColor($"Waiting for Subnautica to get ready. Times out in {timeToRetryInSeconds} seconds...",
