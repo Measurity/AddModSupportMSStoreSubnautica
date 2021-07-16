@@ -33,6 +33,12 @@ namespace AddModSupportMSStoreSubnautica
                 PrintColor("This tool only works on Windows.", ConsoleColor.Red);
                 goto end;
             }
+            if (Utils.IsRunningInTemp())
+            {
+                PrintColor(@"Extract files from the zip before running the tool
+Anywhere is fine and can remove it when done.", ConsoleColor.Red);
+                goto end;
+            }
 
             if (RunCmd("if (Get-AppxPackage *Subnautica* | where IsDevelopmentMode -eq $False) { exit 0 } else { exit 1 }") != 0)
             {
