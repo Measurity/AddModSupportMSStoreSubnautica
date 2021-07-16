@@ -1,15 +1,22 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Principal;
 using System.Threading.Tasks;
-using Microsoft.Win32;
+using AddModSupportMSStoreSubnautica.TypeConverters;
 
 namespace AddModSupportMSStoreSubnautica
 {
     internal class Program
     {
+        /// <summary>
+        ///     The amount of free space required in bytes is about a Subnautica installation (~7.42GiB) + overhead = ~8GiB.
+        /// </summary>
+        private static readonly long SubnauticaInstallSize = (long) (8 * Math.Pow(1024, 3));
+
         private static readonly ConsoleExitHandler ExitHandler = new();
 
         private static readonly string PlayerLogFile =
@@ -18,40 +25,17 @@ namespace AddModSupportMSStoreSubnautica
 
         public static async Task Main(string[] args)
         {
-            ConsoleUtils.SetTopMost();
-            AppDomain.CurrentDomain.UnhandledException += (_, e) =>
-            {
-                var errorMsg = e.ExceptionObject.ToString() ??
-                               $"An unknown unexpected error occurred:{Environment.NewLine}{Environment.StackTrace}";
-                PrintColor(errorMsg, ConsoleColor.Red);
-                Console.WriteLine("Press any key to continue . . .");
-                Console.ReadKey(true);
-                Environment.Exit(1);
-            };
-            if (!OperatingSystem.IsWindows())
-            {
-                PrintColor("This tool only works on Windows.", ConsoleColor.Red);
-                goto end;
-            }
-            if (Utils.IsRunningInTemp())
-            {
-                PrintColor(@"Extract files from the zip before running the tool
-Anywhere is fine and can remove it when done.", ConsoleColor.Red);
-                goto end;
-            }
-
-            if (RunCmd("if (Get-AppxPackage *Subnautica* | where IsDevelopmentMode -eq $False) { exit 0 } else { exit 1 }") != 0)
-            {
-                PrintColor("MS Store Subnautica is not installed", ConsoleColor.Red);
-                goto end;
-            }
-
-            RequireAdmin();
-            EnableDeveloperMode();
+            SetupProgram();
+            if (!CanRun()) goto end;
 
             PrintColor(@"Enter a directory where you want Subnautica (with mod support) to be: (Default: C:\Subnautica)", ConsoleColor.Cyan);
-            var dir = AskAndCreateDirectory(@"C:\Subnautica");
+            var dir = AskForDirectory(@"C:\Subnautica");
+            if (!HasEnoughSpaceOnDrives(
+                (SubnauticaInstallSize, Utils.ReadRegistry<string>(@"Computer\HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\PackageRoot")),
+                (SubnauticaInstallSize, dir)
+            )) return;
 
+            Directory.CreateDirectory(dir);
             Process subnauticaProc = await StartSubnauticaAsync();
             if (RunCmd($@"-c -p {subnauticaProc.Id} -d ""{dir}""", @".\bin\UWPInjector.exe") != 0)
             {
@@ -83,11 +67,102 @@ Anywhere is fine and can remove it when done.", ConsoleColor.Red);
             Console.ReadKey(true);
         }
 
+        private static void SetupProgram()
+        {
+            #if !RELEASE
+            Console.WriteLine(" -- RUNNING IN DEVELOPMENT MODE -- ");
+            #endif
+            ConsoleUtils.SetTopMost();
+            AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            {
+                var errorMsg = e.ExceptionObject.ToString() ??
+                               $"An unknown unexpected error occurred:{Environment.NewLine}{Environment.StackTrace}";
+                PrintColor(errorMsg, ConsoleColor.Red);
+                Console.WriteLine("Press any key to continue . . .");
+                Console.ReadKey(true);
+                Environment.Exit(1);
+            };
+            TypeDescriptor.AddAttributes(typeof(bool), new TypeConverterAttribute(typeof(BoolIntConverter)));
+        }
+
+        private static bool CanRun()
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                PrintColor("This tool only works on Windows.", ConsoleColor.Red);
+                return false;
+            }
+            if (Utils.IsRunningInTemp())
+            {
+                PrintColor(@"Extract files from the zip before running the tool.
+Anywhere is fine and can remove it when done.", ConsoleColor.Red);
+                return false;
+            }
+            if (RunCmd("if (Get-AppxPackage *Subnautica* | where IsDevelopmentMode -eq $False) { exit 0 } else { exit 1 }") != 0)
+            {
+                PrintColor("MS Store Subnautica is not installed", ConsoleColor.Red);
+                return false;
+            }
+#if !DEBUG
+            RequireAdmin();            
+#endif
+            EnableDeveloperMode();
+            return true;
+        }
+
+        private static bool HasEnoughSpaceOnDrives(params (long requiredSpaceInBytes, string? path)[] pathSpaceRequirements)
+        {
+            static bool HasEnoughSpaceAvailable(ReadOnlySpan<char> dir, long spaceRequirementInBytes)
+            {
+                DriveInfo? driveFromPath = Utils.GetDriveFromPath(dir);
+                if (driveFromPath == null)
+                {
+                    // A bigger issue is going on than not having enough space, don't fail here.
+                    return true;
+                }
+
+                while (driveFromPath.AvailableFreeSpace < spaceRequirementInBytes)
+                {
+                    var spaceRequirementMessage = $@"The available space on drive {Path.GetPathRoot(dir.ToString())} is low.
+Recommended: {spaceRequirementInBytes / Math.Pow(1024, 3):##,###.##}GiB but actual space left is {driveFromPath.AvailableFreeSpace / Math.Pow(1024, 3):##,###.##}GiB";
+
+                    PrintColor(spaceRequirementMessage, ConsoleColor.Yellow);
+                    PrintColor("Press 'y' key to continue anyway (not recommended). Press 'n' key to close. Press enter to retry:");
+                    switch (Console.ReadKey(true).KeyChar)
+                    {
+                        case 'n':
+                            return false;
+                        case 'y':
+                            return true;
+                        default:
+                            continue;
+                    }
+                }
+
+                return true;
+            }
+
+            Dictionary<string, long> drivesAggregate = new();
+            // Group paths to drives and sum requirements.
+            foreach ((long requiredSpaceInBytes, string? path) requirement in pathSpaceRequirements)
+            {
+                if (requirement.path == null) continue;
+                var key = Directory.GetDirectoryRoot(requirement.path);
+                drivesAggregate.TryAdd(key, 0);
+                drivesAggregate[key] += requirement.requiredSpaceInBytes;
+            }
+            // Test drive space is there and confirm with user.
+            foreach (var entry in drivesAggregate)
+            {
+                if (!HasEnoughSpaceAvailable(entry.Key, entry.Value)) return false;
+            }
+            return true;
+        }
+
+        [Conditional("RELEASE")]
         private static void EnableDeveloperMode()
         {
-            using RegistryKey? baseKey =
-                Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock", true);
-            baseKey?.SetValue("AllowDevelopmentWithoutDevLicense", 1, RegistryValueKind.DWord);
+            Utils.WriteRegistry(@"Computer\HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock\AllowDevelopmentWithoutDevLicense", 1);
         }
 
         private static void CopyContents(string folder, string targetDirectory)
@@ -155,7 +230,7 @@ Anywhere is fine and can remove it when done.", ConsoleColor.Red);
             return subnauticaProc;
         }
 
-        private static string AskAndCreateDirectory(string? defaultDir = null)
+        private static string AskForDirectory(string? defaultDir = null)
         {
             while (true)
             {
@@ -184,7 +259,6 @@ Anywhere is fine and can remove it when done.", ConsoleColor.Red);
 
                 try
                 {
-                    Directory.CreateDirectory(result);
                     return result;
                 }
                 catch (Exception)
