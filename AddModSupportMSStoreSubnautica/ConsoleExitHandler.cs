@@ -11,6 +11,8 @@ namespace AddModSupportMSStoreSubnautica
     {
         private static readonly List<Action> CleanupTasks = new();
 
+        private delegate bool ConsoleEventDelegate(int eventType);
+
         // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
         private readonly ConsoleEventDelegate handler; // Keeps it from getting garbage collected
 
@@ -28,6 +30,9 @@ namespace AddModSupportMSStoreSubnautica
             }
         }
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool SetConsoleCtrlHandler(ConsoleEventDelegate callback, bool add);
+
         private bool ConsoleEventCallback(int eventType)
         {
             if (eventType != 2) return false;
@@ -35,6 +40,7 @@ namespace AddModSupportMSStoreSubnautica
             lock (CleanupTasks)
             {
                 foreach (var task in CleanupTasks)
+                {
                     try
                     {
                         task();
@@ -43,16 +49,12 @@ namespace AddModSupportMSStoreSubnautica
                     {
                         // ignored
                     }
+                }
 
                 CleanupTasks.Clear();
             }
 
             return false;
         }
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool SetConsoleCtrlHandler(ConsoleEventDelegate callback, bool add);
-
-        private delegate bool ConsoleEventDelegate(int eventType);
     }
 }

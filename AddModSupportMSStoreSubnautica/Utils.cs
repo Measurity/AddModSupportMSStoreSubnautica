@@ -1,8 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using Microsoft.Win32;
 
 namespace AddModSupportMSStoreSubnautica
@@ -40,6 +40,42 @@ namespace AddModSupportMSStoreSubnautica
             return null;
         }
 
+        public static T? ReadRegistry<T>(ReadOnlySpan<char> pathWithKey)
+        {
+            using RegistryKey? key = GetRegistryKey(pathWithKey, false);
+            if (key == null) return default;
+            var nameOfKey = pathWithKey[(pathWithKey.LastIndexOf(Path.DirectorySeparatorChar) + 1)..];
+            return (T?)TypeDescriptor.GetConverter(typeof(T)).ConvertFrom(key.GetValue(nameOfKey.ToString()));
+        }
+
+        public static void WriteRegistry<T>(ReadOnlySpan<char> pathWithKey, T value)
+        {
+            if (value == null) throw new ArgumentNullException(nameof(value));
+            using RegistryKey? key = GetRegistryKey(pathWithKey);
+            if (key == null) return;
+            RegistryValueKind kind = value switch
+            {
+                int => RegistryValueKind.DWord,
+                long => RegistryValueKind.QWord,
+                byte[] => RegistryValueKind.Binary,
+                _ => RegistryValueKind.String
+            };
+            var nameOfKey = pathWithKey[(pathWithKey.LastIndexOf(Path.DirectorySeparatorChar) + 1)..];
+            key.SetValue(nameOfKey.ToString(), value, kind);
+        }
+
+        public static async IAsyncEnumerable<string> ReadLinesFromFileAsync(string file)
+        {
+            using StreamReader stream = new(new FileStream(file, FileMode.Open, FileAccess.Read,
+                FileShare.ReadWrite, 4096, FileOptions.Asynchronous));
+            while (!stream.EndOfStream)
+            {
+                var line = await stream.ReadLineAsync();
+                if (line == null) continue;
+                yield return line;
+            }
+        }
+
         private static RegistryKey? GetRegistryKey(ReadOnlySpan<char> path, bool writable = true)
         {
             if (path.IsEmpty || path.IsWhiteSpace()) return null;
@@ -60,30 +96,6 @@ namespace AddModSupportMSStoreSubnautica
                     break;
             }
             return RegistryKey.OpenBaseKey(hive, RegistryView.Registry64).OpenSubKey(string.Join(Path.DirectorySeparatorChar, parts[2..^1]), writable);
-        }
-        
-        public static T? ReadRegistry<T>(ReadOnlySpan<char> pathWithKey)
-        {
-            using RegistryKey? key = GetRegistryKey(pathWithKey, false);
-            if (key == null) return default;
-            ReadOnlySpan<char> nameOfKey = pathWithKey[(pathWithKey.LastIndexOf(Path.DirectorySeparatorChar)+1)..];
-            return (T?) TypeDescriptor.GetConverter(typeof(T)).ConvertFrom(key.GetValue(nameOfKey.ToString()));
-        }
-        
-        public static void WriteRegistry<T>(ReadOnlySpan<char> pathWithKey, T value)
-        {
-            if (value == null) throw new ArgumentNullException(nameof(value));
-            using RegistryKey? key = GetRegistryKey(pathWithKey);
-            if (key == null) return;
-            RegistryValueKind kind = value switch
-            {
-                int => RegistryValueKind.DWord,
-                long => RegistryValueKind.QWord,
-                byte[] => RegistryValueKind.Binary,
-                _ => RegistryValueKind.String
-            };
-            ReadOnlySpan<char> nameOfKey = pathWithKey[(pathWithKey.LastIndexOf(Path.DirectorySeparatorChar)+1)..];
-            key.SetValue(nameOfKey.ToString(), value, kind);
         }
     }
 }

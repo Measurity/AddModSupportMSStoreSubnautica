@@ -13,16 +13,16 @@ namespace AddModSupportMSStoreSubnautica
 {
     internal class Program
     {
-        /// <summary>
-        ///     The amount of free space required in bytes is about a Subnautica installation (~7.42GiB) + overhead = ~8GiB.
-        /// </summary>
-        private static readonly long SubnauticaInstallSize = (long) (8 * Math.Pow(1024, 3));
-
         private static readonly ConsoleExitHandler ExitHandler = new();
 
         private static readonly string PlayerLogFile =
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "..", "LocalLow",
                 "Unknown Worlds", "Subnautica", "Player.log");
+
+        /// <summary>
+        ///     The amount of free space required in bytes is about a Subnautica installation (~7.42GiB) + overhead = ~8GiB.
+        /// </summary>
+        private static readonly long SubnauticaInstallSize = (long)(8 * Math.Pow(1024, 3));
 
         public static async Task Main(string[] args)
         {
@@ -70,9 +70,9 @@ namespace AddModSupportMSStoreSubnautica
 
         private static void SetupProgram()
         {
-            #if !RELEASE
+#if !RELEASE
             Console.WriteLine(" -- RUNNING IN DEVELOPMENT MODE -- ");
-            #endif
+#endif
             NativeUtils.SetConsoleTopMost();
             AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             {
@@ -105,7 +105,7 @@ Anywhere is fine and can remove it when done.", ConsoleColor.Red);
                 return false;
             }
 #if !DEBUG
-            RequireAdmin();            
+            RequireAdmin();
 #endif
             EnableDeveloperMode();
             return true;
@@ -200,25 +200,26 @@ Recommended: {spaceRequirementInBytes / Math.Pow(1024, 3):##,###.##}GiB but actu
                 subnauticaProc.Kill();
                 subnauticaProc.Close();
             });
-            
+
             // Try to hide the game window because it should not be closed accidentally by user.
             // TODO: Do this without polling, using some native windows calls to prevent window creation.
             CancellationTokenSource hideWindowSource = new(TimeSpan.FromSeconds(20));
             var _ = Task.Factory.StartNew(async () =>
-            {
-                try
                 {
-                    while (!hideWindowSource.IsCancellationRequested)
+                    try
                     {
-                        NativeUtils.HideProcessWindow(subnauticaProc);
-                        await Task.Delay(100, hideWindowSource.Token);
+                        while (!hideWindowSource.IsCancellationRequested)
+                        {
+                            NativeUtils.HideProcessWindow(subnauticaProc);
+                            await Task.Delay(100, hideWindowSource.Token);
+                        }
                     }
-                }
-                catch (Exception)
-                {
-                    // ignored
-                }
-            }, hideWindowSource.Token, TaskCreationOptions.LongRunning, TaskScheduler.Current).ConfigureAwait(false);
+                    catch (Exception)
+                    {
+                        // ignored
+                    }
+                }, hideWindowSource.Token, TaskCreationOptions.LongRunning, TaskScheduler.Current)
+                .ConfigureAwait(false);
 
             // Wait for Subnautica to initialize a bit before running UWPInjector.
             Console.WriteLine("Started Subnautica process Id = " + subnauticaProc.Id);
@@ -231,9 +232,16 @@ Recommended: {spaceRequirementInBytes / Math.Pow(1024, 3):##,###.##}GiB but actu
             {
                 try
                 {
-                    using StreamReader stream = new(new FileStream(PlayerLogFile, FileMode.Open, FileAccess.Read,
-                        FileShare.ReadWrite, 4096, FileOptions.Asynchronous));
-                    if ((await stream.ReadToEndAsync()).Contains("SystemInfo: "))
+                    bool gameIsSufficientlyLoaded = false;
+                    await foreach (var line in Utils.ReadLinesFromFileAsync(PlayerLogFile).WithCancellation(hideWindowSource.Token))
+                    {
+                        if (line.Contains("SystemInfo: "))
+                        {
+                            gameIsSufficientlyLoaded = true;
+                            break;
+                        }
+                    }
+                    if (gameIsSufficientlyLoaded)
                     {
                         break;
                     }
@@ -266,26 +274,15 @@ Recommended: {spaceRequirementInBytes / Math.Pow(1024, 3):##,###.##}GiB but actu
                     result = Path.GetFullPath(result);
                 }
 
-                if (Directory.Exists(result))
+                Directory.CreateDirectory(result);
+                if (Directory.EnumerateFileSystemEntries(result).Any())
                 {
-                    if (Directory.EnumerateFileSystemEntries(result).Any())
-                    {
-                        PrintColor(
-                            $"Directory '{result}' is not empty. Remove the files in it or choose a different directory:");
-                        continue;
-                    }
-
-                    return result;
+                    PrintColor(
+                        $"Directory '{result}' is not empty. Remove the files in it or choose a different directory:");
+                    continue;
                 }
 
-                try
-                {
-                    return result;
-                }
-                catch (Exception)
-                {
-                    PrintColor($"Directory '{result}' does not exist. Enter a different directory:");
-                }
+                return result;
             }
         }
 
@@ -357,20 +354,18 @@ Recommended: {spaceRequirementInBytes / Math.Pow(1024, 3):##,###.##}GiB but actu
                 return principal.IsInRole(WindowsBuiltInRole.Administrator);
             }
 
-            if (!IsAdministrator())
+            if (IsAdministrator()) return;
+            using Process proc = new()
             {
-                using Process proc = new()
+                StartInfo = new ProcessStartInfo
                 {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = Utils.GetCurrentExecutableFileName(),
-                        UseShellExecute = true,
-                        Verb = "runas"
-                    }
-                };
-                proc.Start();
-                Environment.Exit(0);
-            }
+                    FileName = Utils.GetCurrentExecutableFileName(),
+                    UseShellExecute = true,
+                    Verb = "runas"
+                }
+            };
+            proc.Start();
+            Environment.Exit(0);
         }
     }
 }
