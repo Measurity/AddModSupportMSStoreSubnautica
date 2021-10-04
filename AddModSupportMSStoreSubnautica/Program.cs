@@ -55,10 +55,6 @@ namespace AddModSupportMSStoreSubnautica
 #endif
             PrintColor("Organizing files in dumped Subnautica to allow server hosting (this can take a minute)...",
                 ConsoleColor.Cyan);
-            CopyContents(Path.Combine(dir, "AssetBundles"),
-                Path.Combine(dir, "Subnautica_Data", "StreamingAssets", "AssetBundles"));
-            CopyContents(Path.Combine(dir, "SNUnmanagedData"),
-                Path.Combine(dir, "Subnautica_Data", "StreamingAssets", "SNUnmanagedData"));
 
             PrintColor(
                 $"Done! Before you play: start Nitrox Launcher and set the path in settings to the new path:{Environment.NewLine}{dir}",
@@ -164,23 +160,6 @@ Recommended: {spaceRequirementInBytes / Math.Pow(1024, 3):##,###.##}GiB but actu
         private static void EnableDeveloperMode()
         {
             Utils.WriteRegistry(@"Computer\HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock\AllowDevelopmentWithoutDevLicense", 1);
-        }
-
-        private static void CopyContents(string folder, string targetDirectory)
-        {
-            foreach (var directory in Directory.GetDirectories(folder))
-            {
-                var dirName = Path.GetFileName(directory);
-                var curTargetFolder = Path.Combine(targetDirectory, dirName);
-                Directory.CreateDirectory(curTargetFolder);
-                CopyContents(directory, curTargetFolder);
-            }
-
-            Directory.CreateDirectory(targetDirectory);
-            foreach (var file in Directory.GetFiles(folder))
-            {
-                File.Copy(file, Path.Combine(targetDirectory, Path.GetFileName(file)));
-            }
         }
 
         private static async Task<Process> StartSubnauticaAsync()
